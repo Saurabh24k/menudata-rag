@@ -28,16 +28,5 @@ Welcome to **MenuData RAG**, an AI-powered **Restaurant Guide** that helps you e
 - **Data Sources:** Google Drive (for large menu datasets)
 - **Hosting:** Hugging Face Spaces
 
----
 
-## 🎯 Future Improvements
-- 🍴 Expand menu database coverage.
-- 🌍 Support for multiple cities and cuisines.
-- 🏆 User-based recommendations & personalization.
-
----
-
-### 👨‍💻 Try It Now
-📌 **Live Demo:** [https://huggingface.co/spaces/Sau24k/menudata-RAG](https://huggingface.co/spaces/Sau24k/menudata-RAG)
-
-💡 Have feedback or suggestions? Feel free to reach out!
+💡 Have feedback or suggestions? Feel free to reach out at [saurabhrajput24k@gmail.com]!

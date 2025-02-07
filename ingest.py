@@ -2,11 +2,13 @@
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from config import PATHS, API_KEYS, REFERENCE_TYPES
+from config import PATHS, API_KEYS
+from rank_bm25 import BM25Okapi
 from typing import Dict, List, Tuple
 import logging
 import concurrent.futures
 import re
+import pickle
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,23 +23,18 @@ def safe_str_convert(value) -> str:
 
 def load_and_clean_data() -> pd.DataFrame:
     logger.info("🚀 Loading and cleaning menu data...")
-    
+
     if not PATHS["menu_data"].exists():
         raise FileNotFoundError(f"❌ Menu data missing at {PATHS['menu_data']}")
-    
+
     try:
         df = pd.read_csv(PATHS["menu_data"], engine='python', on_bad_lines='warn')
     except Exception as e:
         logger.error(f"📄 CSV read failed: {str(e)}")
         raise
 
-    # 1) Strip/normalize column names: e.g. " City " -> "city"
-    original_cols = list(df.columns)
     df.columns = [col.strip().lower() for col in df.columns]
-    logger.info(f"📋 Original columns: {original_cols}")
-    logger.info(f"🔎 Normalized columns: {list(df.columns)}")
 
-    # 2) If some columns are missing, create them so code won't break:
     required_cols = [
         'restaurant_name', 'menu_category', 'item_id', 'menu_item',
         'menu_description', 'ingredient_name', 'confidence',
@@ -46,10 +43,9 @@ def load_and_clean_data() -> pd.DataFrame:
     ]
     for c in required_cols:
         if c not in df.columns:
-            df[c] = ""  # creating empty col if missing
+            df[c] = ""
             logger.warning(f"⚠️ Column '{c}' not found, creating empty.")
 
-    # 3) Convert text columns safely
     text_columns = [
         'restaurant_name', 'menu_category', 'menu_item',
         'menu_description', 'ingredient_name',
@@ -59,40 +55,38 @@ def load_and_clean_data() -> pd.DataFrame:
     for col in text_columns:
         df[col] = df[col].apply(safe_str_convert)
 
-    # 4) Filter by confidence, etc.
     if not pd.api.types.is_numeric_dtype(df['confidence']):
-        # convert
         df['confidence'] = pd.to_numeric(df['confidence'], errors='coerce')
     df = df.dropna(subset=['confidence'])
-    df = df[
-        (df['confidence'] > 0.65) &
-        (df['ingredient_name'] != "") &
-        (df['menu_item'] != "")
-    ].copy()
+    df = df[(df['confidence'] > 0.65) & (df['ingredient_name'] != "") & (df['menu_item'] != "")]
 
-    # 5) Build 'full_text'
-    def build_full_text(row):
-        desc = row['menu_description'] if row['menu_description'] else 'No description available'
-        return (
-            f"RESTAURANT: {row['restaurant_name']}\n"
-            f"CATEGORY: {row['menu_category']}\n"
-            f"ITEM: {row['menu_item']}\n"
-            f"DESCRIPTION: {desc}\n"
-            f"INGREDIENTS: {row['ingredient_name']}\n"
-            f"LOCATION: {row['address1']}, {row['city']}, {row['state']} {row['zip_code']}, {row['country']}\n"
-            f"RATING: {row['rating']} based on {row['review_count']} reviews, Price: {row['price']}"
-        )
+    df['full_text'] = df.apply(lambda row: (
+        f"RESTAURANT: {row['restaurant_name']}\n"
+        f"CATEGORY: {row['menu_category']}\n"
+        f"ITEM: {row['menu_item']}\n"
+        f"DESCRIPTION: {row['menu_description'] if row['menu_description'] else 'No description available'}\n"
+        f"INGREDIENTS: {row['ingredient_name']}\n"
+        f"LOCATION: {row['address1']}, {row['city']}, {row['state']} {row['zip_code']}, {row['country']}\n"
+        f"RATING: {row['rating']} based on {row['review_count']} reviews, Price: {row['price']}"
+    ), axis=1)
 
-    df['full_text'] = df.apply(build_full_text, axis=1)
     logger.info(f"🧹 Cleaned dataset contains {len(df)} entries")
+    return df[['full_text', 'restaurant_name', 'item_id', 'menu_category', 'menu_item', 'city', 'price', 'rating']]
 
-    # 6) Return only columns needed
-    final_cols = []
-    for c in ['full_text','restaurant_name','item_id','menu_category','menu_item','city','price','rating']:
-        if c in df.columns:
-            final_cols.append(c)
+def build_bm25_index():
+    logger.info("🚀 Building BM25 index...")
 
-    return df[final_cols]
+    df = load_and_clean_data()
+    documents = df['full_text'].fillna("").tolist()
+    tokenized_docs = [doc.lower().split() for doc in documents]
+
+    bm25 = BM25Okapi(tokenized_docs)
+
+    with open(PATHS["bm25_index"], "wb") as f:
+        pickle.dump((bm25, documents), f)
+
+    logger.info(f"✅ BM25 index built with {len(documents)} documents")
+
 
 def fetch_wikipedia(query: str) -> List[Tuple[str, Dict]]:
     """Fetch Wikipedia content safely."""

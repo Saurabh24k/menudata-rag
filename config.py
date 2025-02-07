@@ -13,6 +13,7 @@ PATHS = {
     "menu_data": DATA_DIR / "menu.csv",
     "external_dir": DATA_DIR / "external",
     "faiss_index": DATA_DIR / "faiss_index",
+    "bm25_index": DATA_DIR / "bm25_index.pkl",
     "chunks": DATA_DIR / "chunks.pkl",
     "metadata": DATA_DIR / "metadata.pkl"
 }
@@ -59,6 +60,20 @@ CITATION_SETTINGS = {
         "wikipedia": "Wikipedia"
     }
 }
+
+# Hybrid Search Weight Settings
+HYBRID_SEARCH = {
+    "bm25_weight": 0.4,  # Weight for BM25 (Lexical Search)
+    "faiss_weight": 0.6  # Weight for FAISS (Semantic Search)
+}
+
+# Validate API Keys
+if not API_KEYS["news"]:
+    print("⚠️ Warning: NEWS_API_KEY is missing! News search might not work.")
+
+if not API_KEYS["hf"]:
+    print("⚠️ Warning: HF_TOKEN is missing! LLM API calls might fail.")
+
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 PATHS["external_dir"].mkdir(parents=True, exist_ok=True)

@@ -3,7 +3,7 @@
 Welcome to **MenuData RAG**, an AI-powered restaurant guide that helps you explore menu items, compare restaurant trends, and get real-time insights on food choices using advanced retrieval-augmented generation (RAG) techniques.
 
 ## 🚀 Live Demo
-[Click here](#) to try it out! *(https://huggingface.co/spaces/Sau24k/menudata-RAG)*
+Try it out! *(https://huggingface.co/spaces/Sau24k/menudata-RAG)*
 
 ## ✨ Features
 - 🔍 **Search for Menu Items** – Find restaurants serving specific dishes like gluten-free pizza or Impossible Burgers.
